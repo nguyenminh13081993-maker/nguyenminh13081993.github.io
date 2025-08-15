@@ -1,8 +1,9 @@
 <!DOCTYPE html>
+
 <html lang="vi">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>Flappy Bird + Quiz – Official</title>
 <style>
   :root { --w: 420px; --h: 680px; --fg: #222; }
@@ -27,69 +28,71 @@
   .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:#eaf3ff;color:#0b5bd3;font-weight:700;font-size:12px}
   .footer{margin-top:10px;color:#666;font-size:12px}
   .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+
+canvas {
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <canvas id="game" width="420" height="680" aria-label="Flappy Bird Quiz"></canvas>
-    <div class="hud">
-      <div class="score">Điểm: <span id="score">0</span> • Ống: <span id="pipes">0</span></div>
-      <div class="tip">Nhấn/Chạm để bay 🕹️</div>
-
-      <div class="center" id="startScreen">
-        <div class="overlay">
-          <h2>Flappy Bird + Quiz (Official)</h2>
-          <p>Bay qua ống, trả lời đúng. Sai lùi 1 ống • Đụng chướng ngại vật lùi 2 ống.</p>
-          <div class="row">
-            <button class="btn primary" id="startBtn">Bắt đầu</button>
-            <button class="btn ghost" id="qrBtn">QR trò chơi</button>
-          </div>
-          <p class="footer">Bộ câu hỏi chính thức (10 câu) đã cài sẵn. Độ khó: DỄ • Có âm thanh.</p>
-        </div>
-      </div>
-
-      <div class="center" id="qrScreen" style="display:none">
-        <div class="overlay">
-          <h2>QR trò chơi</h2>
-          <p>Quét QR để mở trò chơi trên điện thoại.</p>
-          <img id="qrImg" alt="QR code" style="width:220px;height:220px;border-radius:10px;border:1px solid #dbeafe;background:#fff" />
-          <p class="footer"><input id="shareUrl" style="width:100%;padding:8px;border:1px solid #dbeafe;border-radius:8px" /></p>
-          <div class="row">
-            <button class="btn primary" id="qrClose">Đóng</button>
-            <a class="btn ghost" href="scoreboard.html" target="_blank">Màn hình điểm</a>
-          </div>
-        </div>
-      </div>
-
-      <div class="center" id="quizScreen" style="display:none">
-        <div class="overlay" role="dialog" aria-modal="true">
-          <div class="row" style="justify-content:space-between">
-            <div class="pill">Câu hỏi</div>
-            <div class="pill" id="timerPill" style="display:none">⏱ <span id="secLeft">0</span>s</div>
-          </div>
-          <h2 id="qText">...</h2>
-          <div class="choices" id="qChoices"></div>
-          <p class="footer" id="qNote">Sai lùi 1 ống • Đúng tiếp tục!</p>
-          <p class="footer" id="explain" style="display:none"></p>
-        </div>
-      </div>
-
-      <div class="center" id="gameOver" style="display:none">
-        <div class="overlay">
-          <h2>Kết thúc 🎉</h2>
-          <p>Điểm của bạn: <b id="finalScore">0</b></p>
-          <div class="row">
-            <button class="btn primary" id="retryBtn">Chơi lại</button>
-            <button class="btn ghost" id="shareBtn">Chia sẻ điểm</button>
-            <a class="btn ghost" id="submitBtn" target="_blank">Gửi điểm</a>
-          </div>
-          <p class="footer">Thay liên kết nút "Gửi điểm" bằng Google Form của bạn (chú thích trong mã).</p>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
+<div class="wrap">
+<canvas aria-label="Flappy Bird Quiz" height="680" id="game" width="420"></canvas>
+<div class="hud">
+<div class="score">Điểm: <span id="score">0</span> • Ống: <span id="pipes">0</span></div>
+<div class="tip">Nhấn/Chạm để bay 🕹️</div>
+<div class="center" id="startScreen">
+<div class="overlay">
+<h2>Flappy Bird + Quiz (Official)</h2>
+<p>Bay qua ống, trả lời đúng. Sai lùi 1 ống • Đụng chướng ngại vật lùi 2 ống.</p>
+<div class="row">
+<button class="btn primary" id="startBtn">Bắt đầu</button>
+<button class="btn ghost" id="qrBtn">QR trò chơi</button>
+</div>
+<p class="footer">Bộ câu hỏi chính thức (10 câu) đã cài sẵn. Độ khó: DỄ • Có âm thanh.</p>
+</div>
+</div>
+<div class="center" id="qrScreen" style="display:none">
+<div class="overlay">
+<h2>QR trò chơi</h2>
+<p>Quét QR để mở trò chơi trên điện thoại.</p>
+<img alt="QR code" id="qrImg" style="width:220px;height:220px;border-radius:10px;border:1px solid #dbeafe;background:#fff"/>
+<p class="footer"><input id="shareUrl" style="width:100%;padding:8px;border:1px solid #dbeafe;border-radius:8px"/></p>
+<div class="row">
+<button class="btn primary" id="qrClose">Đóng</button>
+<a class="btn ghost" href="scoreboard.html" target="_blank">Màn hình điểm</a>
+</div>
+</div>
+</div>
+<div class="center" id="quizScreen" style="display:none">
+<div aria-modal="true" class="overlay" role="dialog">
+<div class="row" style="justify-content:space-between">
+<div class="pill">Câu hỏi</div>
+<div class="pill" id="timerPill" style="display:none">⏱ <span id="secLeft">0</span>s</div>
+</div>
+<h2 id="qText">...</h2>
+<div class="choices" id="qChoices"></div>
+<p class="footer" id="qNote">Sai lùi 1 ống • Đúng tiếp tục!</p>
+<p class="footer" id="explain" style="display:none"></p>
+</div>
+</div>
+<div class="center" id="gameOver" style="display:none">
+<div class="overlay">
+<h2>Kết thúc 🎉</h2>
+<p>Điểm của bạn: <b id="finalScore">0</b></p>
+<div class="row">
+<button class="btn primary" id="retryBtn">Chơi lại</button>
+<button class="btn ghost" id="shareBtn">Chia sẻ điểm</button>
+<a class="btn ghost" id="submitBtn" target="_blank">Gửi điểm</a>
+</div>
+<p class="footer">Thay liên kết nút "Gửi điểm" bằng Google Form của bạn (chú thích trong mã).</p>
+</div>
+</div>
+</div>
+</div>
 <script>
 (() => {
   const CONFIG = {
