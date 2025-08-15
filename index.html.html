@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Flappy Bird + Quiz – Official</title>
+<style>
+  :root { --w: 420px; --h: 680px; --fg: #222; }
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+       background:linear-gradient(180deg,#b3e5fc 0%, #e1f5fe 60%, #ffffff 100%);display:flex;justify-content:center;align-items:center;min-height:100vh;}
+  .wrap{width:var(--w);max-width:100%;position:relative}
+  canvas{width:100%;height:auto;border-radius:14px;box-shadow:0 12px 28px rgba(0,0,0,.15);background:#aee3ff;}
+  .hud{position:absolute;inset:0;pointer-events:none}
+  .score{position:absolute;top:10px;left:12px;background:#ffffffcc;padding:8px 12px;border-radius:10px;font-weight:700;color:var(--fg);backdrop-filter:blur(6px)}
+  .tip{position:absolute;top:10px;right:12px;background:#ffffffcc;padding:8px 12px;border-radius:10px;color:#555;font-size:14px}
+  .center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+  .overlay{pointer-events:auto;background:#ffffffee;border-radius:16px;box-shadow:0 12px 30px rgba(0,0,0,.2);padding:20px;max-width:92%;text-align:center}
+  .overlay h2{margin:0 0 8px;font-size:20px}
+  .overlay p{margin:6px 0 14px}
+  .btn{display:inline-block;margin:6px 6px 0;padding:10px 14px;border-radius:12px;border:none;font-weight:700;cursor:pointer}
+  .btn.primary{background:#0ea5e9;color:#fff}
+  .btn.ghost{background:#eef6ff;color:#0b5bd3}
+  .choices{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px}
+  .choice{padding:10px 12px;border-radius:12px;border:2px solid #dbeafe;cursor:pointer;background:#f8fbff;font-weight:600}
+  .choice.correct{border-color:#22c55e;background:#ecfdf5}
+  .choice.wrong{border-color:#ef4444;background:#fef2f2}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:#eaf3ff;color:#0b5bd3;font-weight:700;font-size:12px}
+  .footer{margin-top:10px;color:#666;font-size:12px}
+  .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <canvas id="game" width="420" height="680" aria-label="Flappy Bird Quiz"></canvas>
+    <div class="hud">
+      <div class="score">Điểm: <span id="score">0</span> • Ống: <span id="pipes">0</span></div>
+      <div class="tip">Nhấn/Chạm để bay 🕹️</div>
+
+      <div class="center" id="startScreen">
+        <div class="overlay">
+          <h2>Flappy Bird + Quiz (Official)</h2>
+          <p>Bay qua ống, trả lời đúng. Sai lùi 1 ống • Đụng chướng ngại vật lùi 2 ống.</p>
+          <div class="row">
+            <button class="btn primary" id="startBtn">Bắt đầu</button>
+            <button class="btn ghost" id="qrBtn">QR trò chơi</button>
+          </div>
+          <p class="footer">Bộ câu hỏi chính thức (10 câu) đã cài sẵn. Độ khó: DỄ • Có âm thanh.</p>
+        </div>
+      </div>
+
+      <div class="center" id="qrScreen" style="display:none">
+        <div class="overlay">
+          <h2>QR trò chơi</h2>
+          <p>Quét QR để mở trò chơi trên điện thoại.</p>
+          <img id="qrImg" alt="QR code" style="width:220px;height:220px;border-radius:10px;border:1px solid #dbeafe;background:#fff" />
+          <p class="footer"><input id="shareUrl" style="width:100%;padding:8px;border:1px solid #dbeafe;border-radius:8px" /></p>
+          <div class="row">
+            <button class="btn primary" id="qrClose">Đóng</button>
+            <a class="btn ghost" href="scoreboard.html" target="_blank">Màn hình điểm</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="center" id="quizScreen" style="display:none">
+        <div class="overlay" role="dialog" aria-modal="true">
+          <div class="row" style="justify-content:space-between">
+            <div class="pill">Câu hỏi</div>
+            <div class="pill" id="timerPill" style="display:none">⏱ <span id="secLeft">0</span>s</div>
+          </div>
+          <h2 id="qText">...</h2>
+          <div class="choices" id="qChoices"></div>
+          <p class="footer" id="qNote">Sai lùi 1 ống • Đúng tiếp tục!</p>
+          <p class="footer" id="explain" style="display:none"></p>
+        </div>
+      </div>
+
+      <div class="center" id="gameOver" style="display:none">
+        <div class="overlay">
+          <h2>Kết thúc 🎉</h2>
+          <p>Điểm của bạn: <b id="finalScore">0</b></p>
+          <div class="row">
+            <button class="btn primary" id="retryBtn">Chơi lại</button>
+            <button class="btn ghost" id="shareBtn">Chia sẻ điểm</button>
+            <a class="btn ghost" id="submitBtn" target="_blank">Gửi điểm</a>
+          </div>
+          <p class="footer">Thay liên kết nút "Gửi điểm" bằng Google Form của bạn (chú thích trong mã).</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+(() => {
+  const CONFIG = {
+    shuffleOptions: true,
+    correctSpeedBoost: 1.03,
+    globalTimeLimit: 0,
+    showExplanationOnWrong: false,
+    showExplanationOnCorrect: false,
+    pipeGap: 200,
+    pipeSpeed: 2.2,
+    gravity: 0.42,
+    spawnEvery: 135
+  };
+
+  const QUESTIONS = [
+  {
+    "text": "AI có thể hỗ trợ công việc văn phòng như thế nào?",
+    "options": [
+      "Tự động hóa quy trình",
+      "Viết nội dung",
+      "Phân tích dữ liệu",
+      "Tất cả các đáp án trên"
+    ],
+    "answerIndex": 3,
+    "triggerPipe": 1
+  },
+  {
+    "text": "Generative AI hoạt động dựa trên gì?",
+    "options": [
+      "Hình ảnh",
+      "Mô hình ngôn ngữ lớn (LLM)",
+      "Âm thanh",
+      "Cảm biến"
+    ],
+    "answerIndex": 1,
+    "triggerPipe": 2
+  },
+  {
+    "text": "Hiện tượng “hallucination” trong AI là gì?",
+    "options": [
+      "AI không phản hồi",
+      "AI tạo ra thông tin sai lệch",
+      "AI bị treo máy",
+      "AI không hiểu ngôn ngữ"
+    ],
+    "answerIndex": 1,
+    "triggerPipe": 3
+  },
+  {
+    "text": "Copilot Chat đảm bảo an toàn dữ liệu bằng cách nào?",
+    "options": [
+      "Không mã hóa dữ liệu",
+      "Dữ liệu được mã hóa và không dùng để huấn luyện mô hình",
+      "Dữ liệu được chia sẻ công khai",
+      "Không có biện pháp bảo vệ"
+    ],
+    "answerIndex": 1,
+    "triggerPipe": 4
+  },
+  {
+    "text": "AI là viết tắt của cụm từ nào sau đây?",
+    "options": [
+      "Automatic Intelligence",
+      "Artificial Intelligence",
+      "Advanced Interface",
+      "Applied Innovation"
+    ],
+    "answerIndex": 1,
+    "triggerPipe": 5
+  },
+  {
+    "text": "Copilot Chat có thể tích hợp trong ứng dụng nào sau đây?",
+    "options": [
+      "Zalo",
+      "Microsoft Teams",
+      "Facebook",
+      "TikTok"
+    ],
+    "answerIndex": 1,
+    "triggerPipe": 6
+  },
+  {
+    "text": "Điểm khác biệt giữa Copilot Chat và các chatbot AI thông thường là gì?",
+    "options": [
+      "Copilot Chat không cần tài khoản",
+      "Copilot Chat tích hợp dữ liệu doanh nghiệp và bảo mật theo chính sách Microsoft 365",
+      "Copilot Chat chỉ hoạt động trên điện thoại",
+      "Copilot Chat không thể xử lý file đính kèm"
+    ],
+    "answerIndex": 1,
+    "triggerPipe": 7
+  },
+  {
+    "text": "Giai đoạn cao nhất trong hành trình ứng dụng AI là gì?",
+    "options": [
+      "AI – trợ lý thông minh",
+      "AI – đồng nghiệp số",
+      "AI – công cụ tự động hóa",
+      "AI – người thay thế con người"
+    ],
+    "answerIndex": 2,
+    "triggerPipe": 8
+  },
+  {
+    "text": "Trong Microsoft 365 Copilot Chat, “Agents” có vai trò gì?",
+    "options": [
+      "Là các nhân viên hỗ trợ trực tuyến",
+      "Là các ứng dụng AI tùy chỉnh để tự động hóa tác vụ",
+      "Là công cụ để tạo hình ảnh",
+      "Là nơi lưu trữ dữ liệu người dùng"
+    ],
+    "answerIndex": 1,
+    "triggerPipe": 9
+  },
+  {
+    "text": "Copilot Chat có thể sử dụng dữ liệu từ đâu để tạo phản hồi?",
+    "options": [
+      "Chỉ từ dữ liệu nội bộ của Microsoft",
+      "Từ Internet, dữ liệu doanh nghiệp, và các tệp người dùng tải lên",
+      "Từ mạng xã hội cá nhân",
+      "Từ dữ liệu của các ứng dụng không thuộc Microsoft"
+    ],
+    "answerIndex": 1,
+    "triggerPipe": 10
+  }
+];
+
+  const SFX = (() => {
+    const ctx = window.AudioContext ? new AudioContext() : null;
+    function tone(freq=440, dur=0.12, type='sine', vol=0.2, pitchSlide=0) {
+      if (!ctx) return;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = type;
+      o.frequency.value = freq;
+      g.gain.value = 0.0001;
+      o.connect(g); g.connect(ctx.destination);
+      const now = ctx.currentTime;
+      g.gain.exponentialRampToValueAtTime(vol, now + 0.02);
+      if (pitchSlide) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq + pitchSlide), now + dur);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+      o.start();
+      o.stop(now + dur + 0.02);
+    }
+    return {
+      flap(){ tone(700,0.08,'square',0.12,-200); },
+      hit(){ tone(120,0.25,'sawtooth',0.18,-60); tone(60,0.25,'triangle',0.12); },
+      correct(){ tone(660,0.10,'square',0.18,80); setTimeout(()=>tone(880,0.12,'square',0.18,60),90); },
+      wrong(){ tone(200,0.15,'sawtooth',0.16,-100); },
+    };
+  })();
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  let running = false, pausedForQuiz = false, gameEnded = false;
+  let bird = { x: 100, y: H/2, r: 16, vy: 0 };
+  let gravity = CONFIG.gravity, flapV = -7.2;
+  let pipes = [];
+  let pipeGap = CONFIG.pipeGap;
+  let pipeW = 70;
+  let pipeSpeed = CONFIG.pipeSpeed;
+  let spawnEvery = CONFIG.spawnEvery;
+  let frame = 0;
+  let score = 0, passed = 0;
+  let invulFrames = 0;
+
+  const scoreEl = document.getElementById('score');
+  const pipesEl = document.getElementById('pipes');
+
+  const quizScreen = document.getElementById('quizScreen');
+  const qText = document.getElementById('qText');
+  const qChoices = document.getElementById('qChoices');
+  const qNote = document.getElementById('qNote');
+  const explain = document.getElementById('explain');
+  const timerPill = document.getElementById('timerPill');
+  const secLeftEl = document.getElementById('secLeft');
+
+  const startScreen = document.getElementById('startScreen');
+  const qrScreen = document.getElementById('qrScreen');
+  const startBtn = document.getElementById('startBtn');
+  const qrBtn = document.getElementById('qrBtn');
+  const qrImg = document.getElementById('qrImg');
+  const shareUrl = document.getElementById('shareUrl');
+  const qrClose = document.getElementById('qrClose');
+
+  const gameOver = document.getElementById('gameOver');
+  const retryBtn = document.getElementById('retryBtn');
+  const shareBtn = document.getElementById('shareBtn');
+  const submitBtn = document.getElementById('submitBtn');
+  const finalScore = document.getElementById('finalScore');
+
+  let quizIndex = 0;
+  let timerId = null;
+  let secondsLeft = 0;
+
+  function openQR() {
+    const url = location.href;
+    shareUrl.value = url;
+    const enc = encodeURIComponent(url);
+    qrImg.src = `https://chart.googleapis.com/chart?cht=qr&chs=220x220&chl=${enc}`;
+    startScreen.style.display = "none";
+    qrScreen.style.display = "flex";
+  }
+
+  function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
+  function startTimer(totalSec, onTimeout) {
+    stopTimer();
+    if (!totalSec || totalSec <= 0) { timerPill.style.display = 'none'; return; }
+    secondsLeft = totalSec;
+    secLeftEl.textContent = secondsLeft;
+    timerPill.style.display = 'inline-flex';
+    timerId = setInterval(() => {
+      secondsLeft--;
+      secLeftEl.textContent = secondsLeft;
+      if (secondsLeft <= 0) { stopTimer(); onTimeout?.(); }
+    }, 1000);
+  }
+
+  function maybeShowQuiz() {
+    if (quizIndex >= QUESTIONS.length) return;
+    const current = QUESTIONS[quizIndex];
+    if (passed >= current.triggerPipe && !pausedForQuiz) {
+      pausedForQuiz = true; running = false;
+      showQuiz(current);
+    }
+  }
+
+  function showQuiz(q) {
+    qText.textContent = q.text;
+    qChoices.innerHTML = '';
+    explain.style.display = 'none';
+    explain.textContent = '';
+    qNote.textContent = 'Sai lùi 1 ống • Đúng tiếp tục!';
+    const opts = q.options.map((t, i) => ({t, i}));
+    const order = CONFIG.shuffleOptions ? opts.sort(() => Math.random() - 0.5) : opts;
+    order.forEach(({t, i}) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice';
+      btn.textContent = t;
+      btn.onclick = () => handleAnswer(i === q.answerIndex, q, btn);
+      qChoices.appendChild(btn);
+    });
+    const limit = q.timeLimit && q.timeLimit > 0 ? q.timeLimit : CONFIG.globalTimeLimit;
+    startTimer(limit, () => handleAnswer(false, q, null, true));
+    quizScreen.style.display = "flex";
+  }
+
+  function handleAnswer(correct, q, btnClicked, isTimeout=false) {
+    if (btnClicked) btnClicked.classList.add(correct ? 'correct' : 'wrong');
+    if (!correct) {
+      SFX.wrong();
+      if (isTimeout) qNote.textContent = 'Hết giờ!';
+      passed = Math.max(0, passed - 1);
+      if (score > 0) score--;
+      scoreEl.textContent = String(score);
+      pipesEl.textContent = String(passed);
+      qChoices.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(0)' }], { duration: 220 });
+      return;
+    } else {
+      SFX.correct();
+      stopTimer();
+      setTimeout(() => {
+        quizScreen.style.display = "none";
+        quizIndex++;
+        pausedForQuiz = false; running = true;
+        pipeSpeed *= CONFIG.correctSpeedBoost || 1;
+        loop();
+      }, 250);
+    }
+  }
+
+  function reset() {
+    running = false; pausedForQuiz = false; gameEnded = false;
+    bird = { x: 100, y: H/2, r: 16, vy: 0 };
+    pipes = []; frame = 0; score = 0; passed = 0; invulFrames = 0;
+    pipeSpeed = CONFIG.pipeSpeed; pipeGap = CONFIG.pipeGap; gravity = CONFIG.gravity;
+    quizIndex = 0;
+    scoreEl.textContent = '0'; pipesEl.textContent = '0';
+    startScreen.style.display = "flex";
+    qrScreen.style.display = "none";
+    quizScreen.style.display = "none";
+    gameOver.style.display = "none";
+    draw();
+  }
+
+  function start() {
+    if (!running) {
+      startScreen.style.display = "none";
+      qrScreen.style.display = "none";
+      running = true;
+      loop();
+    }
+  }
+
+  function gameOverFlow() {
+    running = false; gameEnded = true;
+    finalScore.textContent = score.toString();
+    gameOver.style.display = "flex";
+    stopTimer();
+    const FORM_URL = "https://docs.google.com/forms/d/e/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/viewform?usp=pp_url&entry.1111111111=PLAYER_NAME&entry.2222222222=SCORE";
+    const url = FORM_URL
+      .replace("PLAYER_NAME", encodeURIComponent(prompt("Nhập tên (tuỳ chọn):", "") || "Không tên"))
+      .replace("SCORE", encodeURIComponent(String(score)));
+    submitBtn.href = url;
+  }
+
+  function backOffPipes(n=2) {
+    const before = passed;
+    passed = Math.max(0, passed - n);
+    const delta = before - passed;
+    score = Math.max(0, score - delta);
+    scoreEl.textContent = String(score);
+    pipesEl.textContent = String(passed);
+    bird.y = Math.max(60, Math.min(H-60, bird.y));
+    bird.vy = -3;
+    pipes = pipes.filter(p => p.x + pipeW < bird.x - 10);
+    invulFrames = 45;
+  }
+
+  function loop() {
+    if (!running) return;
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function update() {
+    frame++;
+    if (frame % spawnEvery === 0) {
+      const minGapY = 120, maxGapY = H - 160;
+      const gapY = Math.floor(Math.random() * (maxGapY - minGapY)) + minGapY;
+      pipes.push({ x: W + pipeW, w: pipeW, gapY, gapH: pipeGap, scored: false });
+    }
+    bird.vy += gravity;
+    bird.y += bird.vy;
+    pipes.forEach(p => p.x -= pipeSpeed);
+    while (pipes.length && pipes[0].x + pipeW < -2) pipes.shift();
+    for (const p of pipes) {
+      if (!p.scored && p.x + p.w < bird.x - bird.r) {
+        p.scored = true; score++; scoreEl.textContent = String(score);
+        passed++; pipesEl.textContent = String(passed);
+        maybeShowQuiz();
+      }
+      const hitX = bird.x + bird.r > p.x && bird.x - bird.r < p.x + p.w;
+      const topPipeBottom = p.gapY - p.gapH/2;
+      const bottomPipeTop = p.gapY + p.gapH/2;
+      const hitY = bird.y - bird.r < topPipeBottom || bird.y + bird.r > bottomPipeTop;
+      if (hitX && hitY) {
+        if (invulFrames > 0) break;
+        SFX.hit();
+        backOffPipes(2);
+        break;
+      }
+    }
+    if (bird.y - bird.r < 0 || bird.y + bird.r > H) {
+      if (invulFrames === 0) {
+        SFX.hit();
+        backOffPipes(2);
+        bird.y = Math.min(H - bird.r - 2, Math.max(bird.r + 2, bird.y));
+      }
+    }
+    if (invulFrames > 0) invulFrames--;
+    if (quizIndex >= QUESTIONS.length && score >= QUESTIONS.length + 2) {
+      gameOverFlow();
+    }
+  }
+
+  function draw() {
+    ctx.fillStyle = '#aee3ff'; ctx.fillRect(0,0,W,H);
+    drawCloud(70,120, 28); drawCloud(180,80, 22); drawCloud(320,150, 26); drawCloud(260,40, 18);
+    pipes.forEach(p => drawPipe(p));
+    ctx.fillStyle = '#87cc66'; ctx.fillRect(0, H-30, W, 30);
+    ctx.fillStyle = '#6bb34e'; for (let i=0;i<W;i+=16) ctx.fillRect(i, H-30, 8, 8);
+    drawBird(invulFrames > 0);
+    if (pausedForQuiz && !gameEnded) { ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(0,0,W,H); }
+  }
+
+  function drawPipe(p) {
+    const x = p.x, w = p.w, gapY = p.gapY, gapH = p.gapH;
+    const topH = gapY - gapH/2;
+    const botY = gapY + gapH/2, botH = H - botY - 30;
+    ctx.fillStyle = '#2fbf71'; ctx.fillRect(x, 0, w, topH); ctx.fillRect(x, botY, w, botH);
+    ctx.fillStyle = '#1b9e5d'; ctx.fillRect(x-4, topH-14, w+8, 14); ctx.fillRect(x-4, botY, w+8, 14);
+  }
+
+  function drawBird(blink=false) {
+    const t = performance.now();
+    if (blink && Math.floor(t/100) % 2 === 0) return;
+    ctx.beginPath(); ctx.fillStyle = '#ffd166'; ctx.arc(bird.x, bird.y, bird.r, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.fillStyle = '#fff'; ctx.arc(bird.x+6, bird.y-6, 5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.fillStyle = '#222'; ctx.arc(bird.x+7, bird.y-6, 2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ff7b00'; ctx.beginPath(); ctx.moveTo(bird.x+bird.r-2, bird.y-2); ctx.lineTo(bird.x+bird.r+10, bird.y+2); ctx.lineTo(bird.x+bird.r-2, bird.y+6); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.fillStyle = '#f5c34e'; const flap = Math.sin(performance.now()/120) * 4; ctx.ellipse(bird.x-6, bird.y+flap, 10, 6, 0, 0, Math.PI*2); ctx.fill();
+  }
+
+  function drawCloud(cx, cy, r) {
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.arc(cx+r, cy+6, r*0.8, 0, Math.PI*2);
+    ctx.arc(cx-r, cy+6, r*0.8, 0, Math.PI*2);
+    ctx.arc(cx, cy+10, r*0.9, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  function flap() {
+    if (!running && !pausedForQuiz && !gameEnded && startScreen.style.display !== "none") { start(); return; }
+    if (!running || pausedForQuiz || gameEnded) return;
+    bird.vy = -7.2;
+    SFX.flap();
+  }
+  canvas.addEventListener('pointerdown', flap, { passive: true });
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); flap(); }
+    if (e.code === 'Enter' && gameOver.style.display === "flex") reset();
+  });
+
+  startBtn.onclick = start;
+  qrBtn.onclick = openQR;
+  qrClose && (qrClose.onclick = () => { qrScreen.style.display = 'none'; startScreen.style.display = 'flex'; });
+  retryBtn.onclick = () => reset();
+  shareBtn.onclick = () => {
+    const txt = `Mình được ${score} điểm trong Flappy Bird + Quiz!`;
+    if (navigator.share) navigator.share({ text: txt, title: 'Flappy Bird + Quiz' }).catch(()=>{});
+    else navigator.clipboard?.writeText(txt);
+  };
+
+  reset();
+})();
+</script>
+</body>
+</html>
