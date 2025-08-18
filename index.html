@@ -1,96 +1,135 @@
 <!DOCTYPE html>
-
 <html lang="vi">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Flappy Bird + Quiz – Official</title>
 <style>
-  :root { --w: 420px; --h: 680px; --fg: #222; }
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-       background:linear-gradient(180deg,#b3e5fc 0%, #e1f5fe 60%, #ffffff 100%);display:flex;justify-content:center;align-items:center;min-height:100vh;}
-  .wrap{width:var(--w);max-width:100%;position:relative}
-  canvas{width:100%;height:auto;border-radius:14px;box-shadow:0 12px 28px rgba(0,0,0,.15);background:#aee3ff;}
-  .hud{position:absolute;inset:0;pointer-events:none}
-  .score{position:absolute;top:10px;left:12px;background:#ffffffcc;padding:8px 12px;border-radius:10px;font-weight:700;color:var(--fg);backdrop-filter:blur(6px)}
-  .tip{position:absolute;top:10px;right:12px;background:#ffffffcc;padding:8px 12px;border-radius:10px;color:#555;font-size:14px}
-  .center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-  .overlay{pointer-events:auto;background:#ffffffee;border-radius:16px;box-shadow:0 12px 30px rgba(0,0,0,.2);padding:20px;max-width:92%;text-align:center}
-  .overlay h2{margin:0 0 8px;font-size:20px}
-  .overlay p{margin:6px 0 14px}
-  .btn{display:inline-block;margin:6px 6px 0;padding:10px 14px;border-radius:12px;border:none;font-weight:700;cursor:pointer}
-  .btn.primary{background:#0ea5e9;color:#fff}
-  .btn.ghost{background:#eef6ff;color:#0b5bd3}
-  .choices{display:grid;grid-template-columns:1fr;gap:8px;margin-top:8px}
-  .choice{padding:10px 12px;border-radius:12px;border:2px solid #dbeafe;cursor:pointer;background:#f8fbff;font-weight:600}
-  .choice.correct{border-color:#22c55e;background:#ecfdf5}
-  .choice.wrong{border-color:#ef4444;background:#fef2f2}
-  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;background:#eaf3ff;color:#0b5bd3;font-weight:700;font-size:12px}
-  .footer{margin-top:10px;color:#666;font-size:12px}
-  .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  /* --- Mobile-first tweaks (2025-08) ---
+     - Clamp container width to avoid tiny overflow on narrow phones
+     - Use dynamic viewport units to prevent iOS URL bar jumping
+     - Kill horizontal overflow and common offenders
+     - Make QR image responsive
+  */
+  :root {
+    /* Container width scales from 320px up to 420px */
+    --w: clamp(320px, 92vw, 420px);
+    --h: 680px;
+    --fg: #222;
+  }
+  html, body { margin:0; padding:0; overflow-x:hidden; }
+  *, *::before, *::after { box-sizing:border-box; }
+  img, video, canvas, svg, iframe { max-width:100%; height:auto; }
+  pre, code { white-space:pre-wrap; word-wrap:break-word; }
+  table { width:100%; border-collapse:collapse; display:block; overflow-x:auto; }
 
-canvas {
-    width: 100%;
-    max-width: 400px;
-    height: auto;
-}
+  body{
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    background:linear-gradient(180deg,#b3e5fc 0%, #e1f5fe 60%, #ffffff 100%);
+    display:flex; justify-content:center; align-items:center;
+    /* fallback then modern dynamic viewport unit for mobile chrome/safari */
+    min-height:100vh; min-height:100dvh;
+    /* reduce accidental scroll chaining inside iframes */
+    overscroll-behavior-y: contain;
+    /* safe-area padding for notched devices */
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .wrap{ width:var(--w); position:relative; padding:0 8px; }
+  /* ensure the canvas visually fits; intrinsic size kept for game logic */
+  canvas{ width:100%; height:auto; border-radius:14px; box-shadow:0 12px 28px rgba(0,0,0,.15); background:#aee3ff; display:block; }
+
+  .hud{ position:absolute; inset:0; pointer-events:none; }
+  .score{ position:absolute; top:10px; left:12px; background:#ffffffcc; padding:8px 12px; border-radius:10px; font-weight:700; color:var(--fg); backdrop-filter:blur(6px) }
+  .tip{ position:absolute; top:10px; right:12px; background:#ffffffcc; padding:8px 12px; border-radius:10px; color:#555; font-size:14px }
+
+  .center{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:10px; }
+  .overlay{ pointer-events:auto; background:#ffffffee; border-radius:16px; box-shadow:0 12px 30px rgba(0,0,0,.2); padding:20px; max-width:680px; width:100%; text-align:center }
+  .overlay h2{ margin:0 0 8px; font-size:20px }
+  .overlay p{ margin:6px 0 14px }
+  .btn{ display:inline-block; margin:6px 6px 0; padding:10px 14px; border-radius:12px; border:none; font-weight:700; cursor:pointer }
+  .btn.primary{ background:#0ea5e9; color:#fff }
+  .btn.ghost{ background:#eef6ff; color:#0b5bd3 }
+
+  .choices{ display:grid; grid-template-columns:1fr; gap:8px; margin-top:8px }
+  .choice{ padding:10px 12px; border-radius:12px; border:2px solid #dbeafe; cursor:pointer; background:#f8fbff; font-weight:600 }
+  .choice.correct{ border-color:#22c55e; background:#ecfdf5 }
+  .choice.wrong{ border-color:#ef4444; background:#fef2f2 }
+
+  .pill{ display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; background:#eaf3ff; color:#0b5bd3; font-weight:700; font-size:12px }
+  .footer{ margin-top:10px; color:#666; font-size:12px }
+  .row{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap }
+
+  /* QR image responsive */
+  #qrImg{ width:min(220px, 70vw); height:auto; border-radius:10px; border:1px solid #dbeafe; background:#fff }
+
+  /* Avoid overlays exceeding viewport height on very small screens */
+  @media (max-height: 600px) {
+    .overlay{ padding:14px }
+    .overlay h2{ font-size:18px }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-<canvas aria-label="Flappy Bird Quiz" height="680" id="game" width="420"></canvas>
-<div class="hud">
-<div class="score">Điểm: <span id="score">0</span> • Ống: <span id="pipes">0</span></div>
-<div class="tip">Nhấn/Chạm để bay 🕹️</div>
-<div class="center" id="startScreen">
-<div class="overlay">
-<h2>Flappy Bird + Quiz (Official)</h2>
-<p>Bay qua ống, trả lời đúng. Sai lùi 1 ống • Đụng chướng ngại vật lùi 2 ống.</p>
-<div class="row">
-<button class="btn primary" id="startBtn">Bắt đầu</button>
-<button class="btn ghost" id="qrBtn">QR trò chơi</button>
-</div>
-<p class="footer">Bộ câu hỏi chính thức (10 câu) đã cài sẵn. Độ khó: DỄ • Có âm thanh.</p>
-</div>
-</div>
-<div class="center" id="qrScreen" style="display:none">
-<div class="overlay">
-<h2>QR trò chơi</h2>
-<p>Quét QR để mở trò chơi trên điện thoại.</p>
-<img alt="QR code" id="qrImg" style="width:220px;height:220px;border-radius:10px;border:1px solid #dbeafe;background:#fff"/>
-<p class="footer"><input id="shareUrl" style="width:100%;padding:8px;border:1px solid #dbeafe;border-radius:8px"/></p>
-<div class="row">
-<button class="btn primary" id="qrClose">Đóng</button>
-<a class="btn ghost" href="scoreboard.html" target="_blank">Màn hình điểm</a>
-</div>
-</div>
-</div>
-<div class="center" id="quizScreen" style="display:none">
-<div aria-modal="true" class="overlay" role="dialog">
-<div class="row" style="justify-content:space-between">
-<div class="pill">Câu hỏi</div>
-<div class="pill" id="timerPill" style="display:none">⏱ <span id="secLeft">0</span>s</div>
-</div>
-<h2 id="qText">...</h2>
-<div class="choices" id="qChoices"></div>
-<p class="footer" id="qNote">Sai lùi 1 ống • Đúng tiếp tục!</p>
-<p class="footer" id="explain" style="display:none"></p>
-</div>
-</div>
-<div class="center" id="gameOver" style="display:none">
-<div class="overlay">
-<h2>Kết thúc 🎉</h2>
-<p>Điểm của bạn: <b id="finalScore">0</b></p>
-<div class="row">
-<button class="btn primary" id="retryBtn">Chơi lại</button>
-<button class="btn ghost" id="shareBtn">Chia sẻ điểm</button>
-<a class="btn ghost" id="submitBtn" target="_blank">Gửi điểm</a>
-</div>
-<p class="footer">Thay liên kết nút "Gửi điểm" bằng Google Form của bạn (chú thích trong mã).</p>
-</div>
-</div>
-</div>
-</div>
+  <div class="wrap">
+    <canvas id="game" width="420" height="680" aria-label="Flappy Bird Quiz"></canvas>
+    <div class="hud">
+      <div class="score">Điểm: <span id="score">0</span> • Ống: <span id="pipes">0</span></div>
+      <div class="tip">Nhấn/Chạm để bay 🕹️</div>
+
+      <div class="center" id="startScreen">
+        <div class="overlay">
+          <h2>Flappy Bird + Quiz (Official)</h2>
+          <p>Bay qua ống, trả lời đúng. Sai lùi 1 ống • Đụng chướng ngại vật lùi 2 ống.</p>
+          <div class="row">
+            <button class="btn primary" id="startBtn">Bắt đầu</button>
+            <button class="btn ghost" id="qrBtn">QR trò chơi</button>
+          </div>
+          <p class="footer">Bộ câu hỏi chính thức (10 câu) đã cài sẵn. Độ khó: DỄ • Có âm thanh.</p>
+        </div>
+      </div>
+
+      <div class="center" id="qrScreen" style="display:none">
+        <div class="overlay">
+          <h2>QR trò chơi</h2>
+          <p>Quét QR để mở trò chơi trên điện thoại.</p>
+          <img id="qrImg" alt="QR code" />
+          <p class="footer"><input id="shareUrl" style="width:100%;padding:8px;border:1px solid #dbeafe;border-radius:8px" /></p>
+          <div class="row">
+            <button class="btn primary" id="qrClose">Đóng</button>
+            <a class="btn ghost" href="scoreboard.html" target="_blank" rel="noopener">Màn hình điểm</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="center" id="quizScreen" style="display:none">
+        <div class="overlay" role="dialog" aria-modal="true">
+          <div class="row" style="justify-content:space-between">
+            <div class="pill">Câu hỏi</div>
+            <div class="pill" id="timerPill" style="display:none">⏱ <span id="secLeft">0</span>s</div>
+          </div>
+          <h2 id="qText">...</h2>
+          <div class="choices" id="qChoices"></div>
+          <p class="footer" id="qNote">Sai lùi 1 ống • Đúng tiếp tục!</p>
+          <p class="footer" id="explain" style="display:none"></p>
+        </div>
+      </div>
+
+      <div class="center" id="gameOver" style="display:none">
+        <div class="overlay">
+          <h2>Kết thúc 🎉</h2>
+          <p>Điểm của bạn: <b id="finalScore">0</b></p>
+          <div class="row">
+            <button class="btn primary" id="retryBtn">Chơi lại</button>
+            <button class="btn ghost" id="shareBtn">Chia sẻ điểm</button>
+            <a class="btn ghost" id="submitBtn" target="_blank" rel="noopener">Gửi điểm</a>
+          </div>
+          <p class="footer">Thay liên kết nút "Gửi điểm" bằng Google Form của bạn (chú thích trong mã).</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 <script>
 (() => {
   const CONFIG = {
